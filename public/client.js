@@ -4,37 +4,69 @@ const canvas = document.getElementById('canvas')
 const context = canvas.getContext('2d')
 
 const socket = io()
-const updateInterval = 0.01
+const updateInterval = 1 / 60
 const keys = {}
+const mouse = {
+  x: 0,
+  y: 0,
+  0: false,
+  1: false,
+  2: false
+}
 const camera = {
   position: { x: 0, y: 0 },
   zoom: 0
 }
 const torsoColors = {
-  1: 'hsla(225,100%,50%,1',
-  2: 'hsla(100,100%,27%,1'
+  1: 'hsla(225,100%,50%,1)',
+  2: 'hsla(100,100%,27%,1)'
+}
+const springColors = {
+  1: 'hsla(200,100%,90%,0.5)',
+  2: 'hsla(100,100%,90%,0.5)'
 }
 const bladeColors = {
-  1: 'hsla(190,100%,50%,1',
-  2: 'hsla(140,100%,60%,1'
+  1: 'hsla(190,100%,50%,1)',
+  2: 'hsla(140,100%,60%,1)'
 }
+const scoreColors = {
+  1: 'hsla(225,100%,50%,0.1)',
+  2: 'hsla(120,100%,27%,0.1)'
+}
+const centralColor = 'hsla(50,100%,50%,0.5)'
 
-let arena = {
-  width: 0,
-  height: 0
+let scores = {
+  1: 0,
+  2: 0
 }
+let arena = {}
 let fighters = []
+let alive = false
 
 window.onmousedown = event => {
+  if (!alive) socket.emit('spawn')
+  mouse[event.button] = true
   console.log(fighters)
 }
+window.onmouseup = event => {
+  if (!alive) socket.emit('spawn')
+  mouse[event.button] = false
+}
+window.onmousemove = event => {
+  if (!alive) socket.emit('spawn')
+  mouse.x = event.clientX - 0.5 * window.innerWidth
+  mouse.y = 0.5 * window.innerHeight - event.clientY
+}
 window.onwheel = event => {
+  if (!alive) socket.emit('spawn')
   camera.zoom -= 0.001 * event.deltaY
 }
 window.onkeydown = event => {
+  if (!alive) socket.emit('spawn')
   keys[event.key] = true
 }
 window.onkeyup = event => {
+  if (!alive) socket.emit('spawn')
   keys[event.key] = false
 }
 
@@ -45,7 +77,9 @@ socket.on('connected', msg => {
 })
 socket.on('serverUpdateClient', msg => {
   arena = msg.arena
+  scores = msg.scores
   fighters = msg.fighters
+  alive = msg.alive
   camera.position = msg.position
 })
 
@@ -66,16 +100,25 @@ function updateServer () {
   if (keys.ArrowDown) force.y -= 1
   if (keys.ArrowLeft) force.x -= 1
   if (keys.ArrowRight) force.x += 1
+  if (mouse[0]) {
+    force.x = mouse.x
+    force.y = mouse.y
+  }
   const msg = { force }
   socket.emit('clientUpdateServer', msg)
 }
 
 function render () {
-  console.log('render')
+  console.log(scores)
   setupCanvas()
   drawArena()
-  drawTorsos()
-  drawBlades()
+  drawScores()
+  if (!arena.gameOver) {
+    drawSprings()
+    drawCentral()
+    drawTorsos()
+    drawBlades()
+  }
   window.requestAnimationFrame(render)
 }
 
@@ -116,29 +159,91 @@ function drawArena () {
   context.lineTo(-0.5 * arena.width, 0)
   context.stroke()
   context.beginPath()
-  context.moveTo(+0.5 * arena.width, +0.4 * arena.height)
-  context.lineTo(-0.5 * arena.width, +0.4 * arena.height)
+  context.moveTo(+0.5 * arena.width, +arena.safeLine)
+  context.lineTo(-0.5 * arena.width, +arena.safeLine)
   context.stroke()
   context.beginPath()
-  context.moveTo(+0.5 * arena.width, -0.4 * arena.height)
-  context.lineTo(-0.5 * arena.width, -0.4 * arena.height)
+  context.moveTo(+0.5 * arena.width, -arena.safeLine)
+  context.lineTo(-0.5 * arena.width, -arena.safeLine)
   context.stroke()
+  context.fillStyle = 'hsla(0,0%,30%,1)'
+  context.beginPath()
+  context.rect(-0.5 * arena.blockWidth, +arena.safeLine - 0.5 * arena.blockHeight, arena.blockWidth, arena.blockHeight)
+  context.fill()
+  context.beginPath()
+  context.rect(-0.5 * arena.blockWidth, -arena.safeLine - 0.5 * arena.blockHeight, arena.blockWidth, arena.blockHeight)
+  context.fill()
+}
+
+function drawScores () {
+  context.beginPath()
+  context.fillStyle = scoreColors[1]
+  context.arc(0, 0, 0.5 * arena.width, 0, +scores[1] * Math.PI / arena.winScore)
+  context.lineTo(0, 0)
+  context.fill()
+  context.beginPath()
+  context.fillStyle = scoreColors[2]
+  context.arc(0, 0, 0.5 * arena.width, -scores[2] * Math.PI / arena.winScore, 0)
+  context.lineTo(0, 0)
+  context.fill()
+  if (arena.gameOver) {
+    context.strokeStyle = scores[1] > scores[2] ? bladeColors[1] : bladeColors[2]
+    context.lineWidth = 0.3
+    context.beginPath()
+    context.arc(0, 0, 0.5 * arena.width * (1 - arena.countDown / arena.breakTime), 0, 2 * Math.PI)
+    context.stroke()
+  }
+}
+
+function drawCentral () {
+  context.lineWidth = 0.2
+  context.lineJoin = 'round'
+  context.lineCap = 'round'
+  context.strokeStyle = centralColor
+  fighters.forEach(fighter => {
+    if (fighter.central) {
+      console.log('central')
+      context.beginPath()
+      context.moveTo(0, 0)
+      context.lineTo(fighter.torso.x, fighter.torso.y)
+      context.stroke()
+    }
+  })
+}
+
+function drawSprings () {
+  context.lineWidth = 0.2
+  context.lineJoin = 'round'
+  context.lineCap = 'round'
+  fighters.forEach(fighter => {
+    if (fighter.alive) {
+      context.strokeStyle = springColors[fighter.team]
+      context.beginPath()
+      context.moveTo(fighter.torso.x, fighter.torso.y)
+      context.lineTo(fighter.blade.x, fighter.blade.y)
+      context.stroke()
+    }
+  })
 }
 
 function drawTorsos () {
   fighters.forEach(fighter => {
-    context.beginPath()
-    context.fillStyle = torsoColors[fighter.team]
-    context.arc(fighter.torso.x, fighter.torso.y, 1, 0, 2 * Math.PI)
-    context.fill()
+    if (fighter.alive) {
+      context.beginPath()
+      context.fillStyle = torsoColors[fighter.team]
+      context.arc(fighter.torso.x, fighter.torso.y, arena.torsoRadius, 0, 2 * Math.PI)
+      context.fill()
+    }
   })
 }
 
 function drawBlades () {
   fighters.forEach(fighter => {
-    context.beginPath()
-    context.fillStyle = bladeColors[fighter.team]
-    context.arc(fighter.blade.x, fighter.blade.y, 0.5, 0, 2 * Math.PI)
-    context.fill()
+    if (fighter.alive) {
+      context.beginPath()
+      context.fillStyle = bladeColors[fighter.team]
+      context.arc(fighter.blade.x, fighter.blade.y, arena.bladeRadius, 0, 2 * Math.PI)
+      context.fill()
+    }
   })
 }
