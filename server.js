@@ -36,8 +36,8 @@ function getServer () {
     const key = fs.readFileSync('./sis-key.pem')
     const cert = fs.readFileSync('./sis-cert.pem')
     const credentials = { key, cert }
-    return new https.Server(credentials, app)
     console.log('secure')
+    return new https.Server(credentials, app)
   } else {
     return new http.Server(app)
   }
