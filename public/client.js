@@ -11,7 +11,8 @@ const mouse = {
   y: 0,
   0: false,
   1: false,
-  2: false
+  2: false,
+  touch: false
 }
 const camera = {
   position: { x: 0, y: 0 },
@@ -46,11 +47,29 @@ let alive = false
 window.onmousedown = event => {
   if (!alive) socket.emit('spawn')
   mouse[event.button] = true
-  console.log(fighters)
 }
 window.onmouseup = event => {
   if (!alive) socket.emit('spawn')
   mouse[event.button] = false
+}
+window.ontouchstart = event => {
+  if (!alive) socket.emit('spawn')
+  mouse.x = event.touches[0].clientX - 0.5 * window.innerWidth
+  mouse.y = 0.5 * window.innerHeight - event.touches[0].clientY
+  mouse.touch = true
+  console.log('touchstart', event.touches.length)
+}
+window.ontouchmove = event => {
+  if (!alive) socket.emit('spawn')
+  mouse.x = event.touches[0].clientX - 0.5 * window.innerWidth
+  mouse.y = 0.5 * window.innerHeight - event.touches[0].clientY
+  mouse.touch = true
+  console.log('touchmove', event.touches.length)
+}
+window.ontouchend = event => {
+  if (!alive) socket.emit('spawn')
+  if (event.touches.length === 0) mouse.touch = false
+  console.log('touchend', event.touches.length)
 }
 window.onmousemove = event => {
   if (!alive) socket.emit('spawn')
@@ -100,7 +119,7 @@ function updateServer () {
   if (keys.ArrowDown) force.y -= 1
   if (keys.ArrowLeft) force.x -= 1
   if (keys.ArrowRight) force.x += 1
-  if (mouse[0]) {
+  if (mouse[0] || mouse.touch) {
     force.x = mouse.x
     force.y = mouse.y
   }
@@ -109,7 +128,6 @@ function updateServer () {
 }
 
 function render () {
-  console.log(scores)
   setupCanvas()
   drawArena()
   drawScores()
