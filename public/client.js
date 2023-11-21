@@ -11,12 +11,12 @@ const camera = {
   zoom: 0
 }
 const torsoColors = {
-  1: 'hsla(210,100%,50%,1',
-  2: 'hsla(120,100%,27%,1'
+  1: 'hsla(225,100%,50%,1',
+  2: 'hsla(100,100%,27%,1'
 }
 const bladeColors = {
   1: 'hsla(190,100%,50%,1',
-  2: 'hsla(140,100%,50%,1'
+  2: 'hsla(140,100%,60%,1'
 }
 
 let arena = {

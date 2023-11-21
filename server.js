@@ -3,6 +3,18 @@ import http from 'http'
 import path from 'path'
 import { Server } from 'socket.io'
 import { fileURLToPath } from 'url'
+import fs from 'fs-extra'
+
+const config = {
+  secure: false,
+  port: 3000
+}
+try {
+  Object.assign(config, fs.readJSONSync('config.json'))
+} catch (error) {
+  console.log('config.json: no such file')
+}
+console.log(config)
 
 const app = express()
 const __filename = fileURLToPath(import.meta.url)
@@ -18,13 +30,23 @@ app.get('/socketIo/:fileName', function (req, res) {
   res.sendFile(filePath)
 })
 
+function getServer () {
+  if (config.secure) {
+    const key = fs.readFileSync('./sis-key.pem')
+    const cert = fs.readFileSync('./sis-cert.pem')
+    const credentials = { key, cert }
+    return new https.Server(credentials, app)
+  } else {
+    return new http.Server(app)
+  }
+}
+
 function start (onStart) {
-  const server = new http.Server(app)
+  const server = getServer()
   const io = new Server(server)
   io.path(staticPath)
-  const port = 3000
-  server.listen(port, () => {
-    console.log(`Listening on :${port}`)
+  server.listen(config.port, () => {
+    console.log(`Listening on :${config.port}`)
     if (onStart) onStart()
   })
   return io

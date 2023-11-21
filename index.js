@@ -9,7 +9,6 @@ const arena = {
 }
 
 const io = server.start(() => {
-  console.log('Server started')
   setInterval(update, dt * 1000)
 })
 
@@ -94,7 +93,7 @@ function createFighter () {
   const blade = world.createBody({
     type: 'dynamic',
     position: new Vec2(0, 0.45 * arena.height),
-    linearDamping: 1
+    linearDamping: 0.1
   })
   blade.createFixture({
     shape: new Circle(Vec2(0, 0), 0.5),
