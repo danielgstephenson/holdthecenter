@@ -2,6 +2,7 @@ import server from './server.js'
 import { Box, Circle, Edge, Vec2, World } from 'planck'
 
 const dt = 1 / 60
+const timeScale = 0.7
 const fighters = {}
 const scores = {
   1: 0,
@@ -15,8 +16,8 @@ const arena = {
   blockHeight: 3,
   torsoRadius: 1,
   bladeRadius: 0.7,
-  winScore: 120,
-  breakTime: 15,
+  winScore: 50,
+  breakTime: 5,
   countDown: 0
 }
 
@@ -211,15 +212,15 @@ function update () {
     if (arena.countDown <= 0) {
       scores[1] = 0
       scores[2] = 0
-      world.step(dt)
+      world.step(timeScale * dt)
       livingFighters.forEach(fighter => { fighter.spawn() })
     }
   } else {
     arena.gameOver = false
     arena.countDown = arena.breakTime
-    if (winning[1]) scores[1] += 4 * dt
-    if (winning[2]) scores[2] += 4 * dt
-    world.step(dt)
+    if (winning[1]) scores[1] += timeScale * dt
+    if (winning[2]) scores[2] += timeScale * dt
+    world.step(timeScale * dt)
   }
 }
 
